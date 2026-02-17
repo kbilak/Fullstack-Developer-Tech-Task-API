@@ -95,6 +95,29 @@ public class EntryController : ControllerBase
     }
 
     /// <summary>
+    /// Gets aggregated entry statistics (daily counts + per-store counts) for a date range.
+    /// </summary>
+    /// <param name="startDate">Start date of the range (yyyy-MM-dd).</param>
+    /// <param name="endDate">End date of the range (yyyy-MM-dd).</param>
+    /// <returns>Daily and per-store entry counts with status.</returns>
+    [HttpGet]
+    [Route("statistics")]
+    public async Task<ActionResult<EntryStatisticsResponseDTO>> GetStatistics(
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate)
+    {
+        if (startDate > endDate)
+            return BadRequest(new ApiResponse
+            {
+                Status = false,
+                Message = "startDate must be less than or equal to endDate"
+            });
+
+        var result = await _entryRepository.GetEntryStatisticsAsync(startDate, endDate);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Gets entries within a date range with pagination.
     /// </summary>
     /// <param name="startDate">Start date of the range (yyyy-MM-dd).</param>
@@ -139,5 +162,63 @@ public class EntryController : ControllerBase
             return NotFound(result);
 
         return Created(string.Empty, result);
+    }
+
+    /// <summary>
+    /// Updates an existing entry's date.
+    /// </summary>
+    /// <param name="ID">Entry ID.</param>
+    /// <param name="entryData">Updated entry data containing the new date.</param>
+    /// <returns>Operation status.</returns>
+    [HttpPut]
+    [Route("{ID}")]
+    public async Task<ActionResult<ApiResponse>> Update(int ID, [FromBody] PutEntryUpdateDTO entryData)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _entryRepository.UpdateEntryAsync(ID, entryData);
+
+        if (!result.Status)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Deletes an entry by ID.
+    /// </summary>
+    /// <param name="ID">Entry ID.</param>
+    /// <returns>Operation status.</returns>
+    [HttpDelete]
+    [Route("{ID}")]
+    public async Task<ActionResult<ApiResponse>> Delete(int ID)
+    {
+        var result = await _entryRepository.DeleteEntryAsync(ID);
+
+        if (!result.Status)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Deletes multiple entries by IDs.
+    /// </summary>
+    /// <param name="ids">List of Entry IDs to delete.</param>
+    /// <returns>Operation status.</returns>
+    [HttpDelete]
+    [Route("bulk")]
+    public async Task<ActionResult<ApiResponse>> DeleteBulk([FromBody] List<int> ids)
+    {
+        if (ids == null || ids.Count == 0)
+            return BadRequest(new ApiResponse { Status = false, Message = "No IDs provided" });
+
+        var result = await _entryRepository.DeleteEntriesAsync(ids);
+
+        if (!result.Status)
+            return NotFound(result);
+
+        return Ok(result);
     }
 }

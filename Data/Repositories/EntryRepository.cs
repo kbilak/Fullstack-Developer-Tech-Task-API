@@ -67,7 +67,8 @@ public class EntryRepository : IEntryRepository
             {
                 ID = e.ID,
                 IDStore = e.IDStore,
-                EntryDate = e.EntryDate
+                EntryDate = e.EntryDate,
+                StoreName = e.Store.Name
             })
             .ToListAsync();
 
@@ -141,7 +142,8 @@ public class EntryRepository : IEntryRepository
             {
                 ID = e.ID,
                 IDStore = e.IDStore,
-                EntryDate = e.EntryDate
+                EntryDate = e.EntryDate,
+                StoreName = e.Store.Name
             })
             .ToListAsync();
 
@@ -178,7 +180,8 @@ public class EntryRepository : IEntryRepository
             {
                 ID = e.ID,
                 IDStore = e.IDStore,
-                EntryDate = e.EntryDate
+                EntryDate = e.EntryDate,
+                StoreName = e.Store.Name
             })
             .ToListAsync();
 
@@ -226,6 +229,136 @@ public class EntryRepository : IEntryRepository
             PageSize = pagination.PageSize,
             TotalItems = totalItems,
             TotalPages = totalPages,
+            Status = true,
+            Message = null
+        };
+    }
+
+    /// <summary>
+    /// Updates an existing entry's date.
+    /// </summary>
+    /// <param name="ID">Entry ID.</param>
+    /// <param name="entryData">Updated entry data.</param>
+    /// <returns>Operation status.</returns>
+    public async Task<ApiResponse> UpdateEntryAsync(int ID, PutEntryUpdateDTO entryData)
+    {
+        var entry = await _db.Entries.FindAsync(ID);
+
+        if (entry == null)
+            return new ApiResponse
+            {
+                Status = false,
+                Message = "Entry not found"
+            };
+
+        entry.EntryDate = entryData.EntryDate;
+        await _db.SaveChangesAsync();
+
+        return new ApiResponse
+        {
+            Status = true,
+            Message = null
+        };
+    }
+
+    /// <summary>
+    /// Deletes a single entry by ID.
+    /// </summary>
+    /// <param name="ID">Entry ID.</param>
+    /// <returns>Operation status.</returns>
+    public async Task<ApiResponse> DeleteEntryAsync(int ID)
+    {
+        var entry = await _db.Entries.FindAsync(ID);
+
+        if (entry == null)
+            return new ApiResponse
+            {
+                Status = false,
+                Message = "Entry not found"
+            };
+
+        _db.Entries.Remove(entry);
+        await _db.SaveChangesAsync();
+
+        return new ApiResponse
+        {
+            Status = true,
+            Message = null
+        };
+    }
+
+    /// <summary>
+    /// Deletes multiple entries by IDs.
+    /// </summary>
+    /// <param name="ids">List of Entry IDs to delete.</param>
+    /// <returns>Operation status.</returns>
+    public async Task<ApiResponse> DeleteEntriesAsync(List<int> ids)
+    {
+        var entries = await _db.Entries
+            .Where(e => ids.Contains(e.ID))
+            .ToListAsync();
+
+        if (entries.Count == 0)
+            return new ApiResponse
+            {
+                Status = false,
+                Message = "No entries found"
+            };
+
+        _db.Entries.RemoveRange(entries);
+        await _db.SaveChangesAsync();
+
+        return new ApiResponse
+        {
+            Status = true,
+            Message = null
+        };
+    }
+
+    /// <summary>
+    /// Gets aggregated entry statistics for a date range: daily counts + per-store counts.
+    /// </summary>
+    /// <param name="startDate">Start date of the range.</param>
+    /// <param name="endDate">End date of the range.</param>
+    /// <returns>Daily and per-store entry counts.</returns>
+    public async Task<EntryStatisticsResponseDTO> GetEntryStatisticsAsync(DateTime startDate, DateTime endDate)
+    {
+        var query = _db.Entries.Where(e => e.EntryDate >= startDate && e.EntryDate <= endDate);
+
+        var entries = await query.Select(e => e.EntryDate).ToListAsync();
+
+        var dailyCounts = entries
+            .GroupBy(d => d.Date)
+            .OrderBy(g => g.Key)
+            .Select(g => new EntryDailyCountDTO
+            {
+                Date = g.Key.ToString("yyyy-MM-dd"),
+                Count = g.Count()
+            })
+            .ToList();
+
+        var storeEntries = await query.Select(e => e.IDStore).ToListAsync();
+
+        var storeIds = storeEntries.Distinct().ToList();
+        var storeNames = await _db.Stores
+            .Where(s => storeIds.Contains(s.ID))
+            .ToDictionaryAsync(s => s.ID, s => s.Name);
+
+        var storeCountDtos = storeEntries
+            .GroupBy(id => id)
+            .OrderByDescending(g => g.Count())
+            .Select(g => new EntryStoreCountDTO
+            {
+                IDStore = g.Key,
+                StoreName = storeNames.GetValueOrDefault(g.Key),
+                Count = g.Count()
+            })
+            .ToList();
+
+        return new EntryStatisticsResponseDTO
+        {
+            DailyCounts = dailyCounts,
+            StoreCounts = storeCountDtos,
             Status = true,
             Message = null
         };
