@@ -129,7 +129,7 @@ public class EntryRepository : IEntryRepository
     /// <returns>Paginated list of Entries.</returns>
     public async Task<PaginatedResponse<EntryListItemDTO>> GetEntriesByDateRangeAsync(DateTime startDate, DateTime endDate, PaginationParams pagination)
     {
-        var query = _db.Entries.Where(e => e.EntryDate >= startDate && e.EntryDate <= endDate);
+        var query = _db.Entries.Where(e => e.EntryDate.Date >= startDate.Date && e.EntryDate.Date <= endDate.Date);
 
         var totalItems = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalItems / (double)pagination.PageSize);
@@ -323,7 +323,7 @@ public class EntryRepository : IEntryRepository
     /// <returns>Daily and per-store entry counts.</returns>
     public async Task<EntryStatisticsResponseDTO> GetEntryStatisticsAsync(DateTime startDate, DateTime endDate)
     {
-        var query = _db.Entries.Where(e => e.EntryDate >= startDate && e.EntryDate <= endDate);
+        var query = _db.Entries.Where(e => e.EntryDate.Date >= startDate.Date && e.EntryDate.Date <= endDate.Date);
 
         var entries = await query.Select(e => e.EntryDate).ToListAsync();
 

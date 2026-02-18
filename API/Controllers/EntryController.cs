@@ -161,7 +161,7 @@ public class EntryController : ControllerBase
         if (!result.Status)
             return NotFound(result);
 
-        return Created(string.Empty, result);
+        return Created("", result);
     }
 
     /// <summary>

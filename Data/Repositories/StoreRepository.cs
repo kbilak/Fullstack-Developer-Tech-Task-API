@@ -65,6 +65,7 @@ public class StoreRepository : IStoreRepository
         query = sortField switch
         {
             "name" => sortAsc ? query.OrderBy(s => s.Name) : query.OrderByDescending(s => s.Name),
+            "entries" => sortAsc ? query.OrderBy(s => s.Entries.Count) : query.OrderByDescending(s => s.Entries.Count),
             _ => sortAsc ? query.OrderBy(s => s.ID) : query.OrderByDescending(s => s.ID),
         };
 
@@ -104,7 +105,7 @@ public class StoreRepository : IStoreRepository
         var field = parts[0].ToLower();
         var asc = parts.Length < 2 || !parts[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
 
-        if (field != "name" && field != "id")
+        if (field != "name" && field != "id" && field != "entries")
             field = "id";
 
         return (field, asc);
@@ -122,9 +123,9 @@ public class StoreRepository : IStoreRepository
         if (store == null)
             return new GetStoreResponseDTO
             {
-                Name = string.Empty,
-                City = string.Empty,
-                Country = string.Empty,
+                Name = "",
+                City = "",
+                Country = "",
                 Status = false,
                 Message = "Store not found"
             };
@@ -237,15 +238,15 @@ public class StoreRepository : IStoreRepository
     public async Task<GetStoreStatisticsResponseDTO> GetStatisticsAsync(int IDStore, DateTime startDate, DateTime endDate)
     {
         var store = await _db.Stores
-            .Include(s => s.Entries.Where(e => e.EntryDate >= startDate && e.EntryDate <= endDate))
+            .Include(s => s.Entries.Where(e => e.EntryDate.Date >= startDate.Date && e.EntryDate.Date <= endDate.Date))
             .FirstOrDefaultAsync(s => s.ID == IDStore);
 
         if (store == null)
             return new GetStoreStatisticsResponseDTO
             {
-                Name = string.Empty,
-                City = string.Empty,
-                Country = string.Empty,
+                Name = "",
+                City = "",
+                Country = "",
                 Status = false,
                 Message = "Store not found"
             };
